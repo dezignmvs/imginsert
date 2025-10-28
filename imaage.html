@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery Page</title>
+    
+    <!-- 1. Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Iconify CDN --><script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    
+    <!-- 3. Font Imports and Tailwind Configuration --><style type="text/tailwindcss">
+        /* Import fonts from Fontshare */
+        @import url('https://api.fontshare.com/v2/css?f[]=clash-grotesk@600,500&f[]=general-sans@400&display=swap');
+
+        @layer base {
+            /* Apply General Sans as the default body font */
+            body {
+                @apply font-body bg-gray-50 text-gray-900 antialiased dark:bg-gray-900 dark:text-gray-200 transition-colors duration-300;
+            }
+            /* Apply Clash Grotesk for headings */
+            h1, h2, h3, h4, h5, h6 {
+                @apply font-heading font-semibold;
+            }
+            /* Apply new card styles to the gallery grid container */
+            #gallery-grid {
+                @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6;
+                /* Ensure cards are centered if grid doesn't fill row */
+                @apply justify-items-center;
+            }
+        }
+        
+        @layer components {
+            /* NEW CARD STYLES (Adapted from user code) */
+            .image-card {
+                @apply relative w-[276px] h-[418px] rounded-lg overflow-hidden shadow-lg bg-gray-300 dark:bg-gray-800 text-white font-body;
+            }
+
+            .image-card img {
+                @apply w-full h-full object-cover;
+                filter: brightness(75%);
+            }
+
+            /* Top Row */
+            .top-row {
+                @apply absolute top-2.5 right-2.5;
+            }
+
+            /* Bottom Row */
+            .bottom-row {
+                @apply absolute bottom-2.5 left-0 right-0 flex justify-between items-end px-3;
+            }
+
+            /* Text Group */
+            .text-group {
+                @apply flex flex-col leading-tight;
+            }
+
+            .text-group .title {
+                @apply text-lg font-bold;
+            }
+
+            .text-group .subtitle {
+                @apply text-sm font-light opacity-80;
+            }
+
+            /* Icon Styles */
+            .icon-group {
+                @apply flex gap-2.5;
+            }
+
+            .icon-btn {
+                @apply bg-black/50 text-white p-1.5 rounded-md cursor-pointer transition-colors duration-200 text-base;
+                /* Use text-base for 16px font-size */
+            }
+            
+            .icon-btn:hover {
+                @apply bg-white/30;
+            }
+            
+            /* Ensure iconify icons inside buttons are sized correctly */
+            .icon-btn iconify-icon {
+                @apply text-lg leading-none block; /* ~18px, gives a bit more presence */
+            }
+            
+            a.icon-btn {
+                @apply flex items-center justify-center;
+            }
+        }
+        
+        @layer utilities {
+            /* Custom utility classes */
+            .font-heading {
+                font-family: 'Clash Grotesk', sans-serif;
+            }
+            .font-body {
+                font-family: 'General Sans', sans-serif;
+            }
+
+            /* Custom styles for file input */
+            .file-input-wrapper {
+                @apply relative inline-block w-full;
+            }
+            .file-input-label {
+                @apply flex items-center justify-center w-full px-4 py-3 bg-white border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition
+                       dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600
+                       hover:bg-gray-100 hover:border-gray-400 dark:hover:border-gray-500;
+            }
+            .file-input-label-text {
+                @apply text-sm text-gray-600 dark:text-gray-300;
+            }
+            .file-input-label-icon {
+                @apply mr-2 text-xl text-gray-500 dark:text-gray-400;
+            }
+            .file-input {
+                @apply absolute inset-0 w-full h-full opacity-0 cursor-pointer;
+            }
+            #file-upload-filename {
+                @apply text-sm text-gray-500 dark:text-gray-400 mt-2 text-center truncate;
+            }
+
+            /* Loading Spinner */
+            .spinner {
+                @apply w-5 h-5 border-2 border-current border-r-transparent rounded-full animate-spin;
+            }
+        }
+    </style>
+    
+    <script>
+        // Configure Tailwind to recognize our custom fonts
+        tailwind.config = {
+            darkMode: 'class', // Enable dark mode using a class
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['General Sans', 'sans-serif'],
+                        'body': ['General Sans', 'sans-serif'],
+                        'heading': ['Clash Grotesk', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="min-h-screen">
+
+    <!-- ================================== -->
+    <!--            NAVBAR                  -->
+    <!-- ================================== -->
+    <nav class="bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg text-gray-900 dark:text-white p-4 flex justify-between items-center shadow-md sticky top-0 z-50 transition-colors duration-300">
+        <!-- Left Side: Logo/Title -->
+        <div class="flex items-center gap-3">
+             <span class="text-2xl text-blue-600 dark:text-blue-400">
+                <iconify-icon icon="mdi:image-gallery"></iconify-icon>
+            </span>
+            <span class="font-heading text-xl font-semibold hidden sm:inline">Gallery</span>
+        </div>
+
+        <!-- Right Side: Icons -->
+        <div class="flex items-center gap-1 sm:gap-2">
+            <!-- Theme Toggle -->
+            <button id="theme-toggle-btn" title="Toggle theme" class="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-2xl p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600">
+                <iconify-icon id="theme-icon-light" icon="mdi:weather-sunny"></iconify-icon>
+                <iconify-icon id="theme-icon-dark" icon="mdi:moon-waning-crescent" class="hidden"></iconify-icon>
+            </button>
+            <!-- Analytics -->
+            <button title="Analytics" class="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-2xl p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600">
+                <iconify-icon icon="mdi:chart-pie"></iconify-icon>
+            </button>
+            <!-- Fullscreen -->
+            <button id="fullscreen-toggle-btn" title="Toggle fullscreen" class="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-2xl p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600">
+                <iconify-icon id="fullscreen-icon-enter" icon="mdi:arrow-expand"></iconify-icon>
+                <iconify-icon id="fullscreen-icon-exit" icon="mdi:arrow-collapse" class="hidden"></iconify-icon>
+            </button>
+            <!-- Add Link (Image) Button -->
+            <button id="add-image-btn" title="Add Image" class="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors text-2xl p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600">
+                <iconify-icon icon="mdi:plus"></iconify-icon>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ================================== -->
+    <!--          GALLERY CONTENT           -->
+    <!-- ================================== -->
+    <div class="container max-w-7xl mx-auto px-4 py-12">
+
+        <!-- Header Section -->
+        <header class="text-center mb-10">
+            <h1 class="font-heading text-4xl md:text-5xl mb-2 tracking-tight">GALLERY</h1>
+            <p class="font-body text-lg text-gray-600 dark:text-gray-400">Capturing the moments of our festival</p>
+        </header>
+
+        <!-- Filter and Search Section -->
+        <div class="flex flex-col md:flex-row gap-4 mb-8 items-center">
+            
+            <!-- Search Bar -->
+            <div class="relative w-full md:flex-grow">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
+                    <iconify-icon icon="mdi:magnify"></iconify-icon>
+                </span>
+                <input 
+                    type="text" 
+                    placeholder="Search images by title, description..." 
+                    class="w-full pl-12 pr-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition
+                           dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500"
+                >
+            </div>
+
+            <!-- Filter Buttons -->
+            <div class="flex-shrink-0 flex gap-3 w-full md:w-auto">
+                <button class="w-1/2 md:w-auto bg-white border border-gray-300 rounded-lg shadow-sm px-5 py-3 flex items-center justify-center gap-2 hover:bg-gray-100 transition text-gray-700 font-medium
+                               dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+                    <iconify-icon icon="mdi:filter-variant" class="text-red-500"></iconify-icon>
+                    <span>Sections</span>
+                    <iconify-icon icon="mdi:chevron-down"></iconify-icon>
+                </button>
+                <button class="w-1/2 md:w-auto bg-white border border-gray-300 rounded-lg shadow-sm px-5 py-3 flex items-center justify-center gap-2 hover:bg-gray-100 transition text-gray-700 font-medium
+                               dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+                    <iconify-icon icon="mdi:image-album" class="text-yellow-500"></iconify-icon>
+                    <span>Albums</span>
+                    <iconify-icon icon="mdi:chevron-down"></iconify-icon>
+                </button>
+            </div>
+        </div>
+
+        <!-- Gallery Grid -->
+        <div id="gallery-grid">
+            <!-- Gallery items will be dynamically inserted here by Firebase -->
+            <p id="gallery-loading" class="text-gray-500 dark:text-gray-400 col-span-full text-center">Loading images...</p>
+        </div> <!-- End Gallery Grid -->
+
+    </div> <!-- End Container -->
+
+
+    <!-- ================================== -->
+    <!--            MODALS                  -->
+    <!-- ================================== -->
+
+    <!-- Modal Overlay -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90] hidden"></div>
+
+    <!-- 1. Add Image Modal -->
+    <div id="add-image-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-md transform transition-all scale-95 opacity-0">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center p-4 border-b dark:border-gray-700">
+                <h3 class="font-heading text-lg">Add New Image</h3>
+                <div class="flex items-center gap-2">
+                    <button id="customize-btn" class="text-sm flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
+                        <iconify-icon icon="mdi:pencil-outline"></iconify-icon>
+                        Customize
+                    </button>
+                    <button data-close-modal="add-image-modal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl">&times;</button>
+                </div>
+            </div>
+            <!-- Modal Body -->
+            <form id="upload-form" class="p-6 space-y-4">
+                <!-- Image Upload -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Image Upload</label>
+                    <div class="file-input-wrapper">
+                        <label for="file-upload" class="file-input-label">
+                            <iconify-icon icon="mdi:cloud-upload-outline" class="file-input-label-icon"></iconify-icon>
+                            <span id="file-upload-text" class="file-input-label-text">Click to choose a file</span>
+                        </label>
+                        <input id="file-upload" type="file" class="file-input" accept="image/*">
+                    </div>
+                    <p id="file-upload-filename" class=""></p>
+                </div>
+                
+                <!-- Album Dropdown -->
+                <div>
+                    <label for="album-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Album</label>
+                    <select id="album-select" class="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Loading albums...</option>
+                    </select>
+                </div>
+                
+                <!-- Section Dropdown -->
+                <div>
+                    <label for="section-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section</label>
+                    <select id="section-select" class="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Loading sections...</option>
+                    </select>
+                </div>
+                
+                <div id="upload-error" class="text-red-500 text-sm hidden"></div>
+
+                <!-- Modal Footer -->
+                <div class="pt-4 flex justify-end gap-3">
+                    <button type="button" data-close-modal="add-image-modal" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition">Cancel</button>
+                    <button type="submit" id="submit-upload-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center min-w-[80px]">
+                        <span id="upload-btn-text">Upload</span>
+                        <div id="upload-spinner" class="spinner hidden"></div>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. Manage Categories Modal -->
+    <div id="manage-categories-modal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-lg transform transition-all scale-95 opacity-0">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center p-4 border-b dark:border-gray-700">
+                <h3 class="font-heading text-lg">Manage Categories</h3>
+                <button data-close-modal="manage-categories-modal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl">&times;</button>
+            </div>
+            <!-- Modal Body -->
+            <div class="p-6">
+                <!-- Tabs -->
+                <div class="border-b border-gray-200 dark:border-gray-700 mb-4">
+                    <nav class="flex -mb-px" aria-label="Tabs">
+                        <button id="tab-albums" class="tab-btn w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm text-blue-600 border-blue-600 dark:text-blue-400 dark:border-blue-400" aria-current="page">
+                            Manage Albums
+                        </button>
+                        <button id="tab-sections" class="tab-btn w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600">
+                            Manage Sections
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Tab Content -->
+                <div id="tab-content-albums" class="tab-content space-y-4">
+                    <form id="add-album-form" class="flex gap-2">
+                        <input id="new-album-name" type="text" placeholder="New album name..." class="flex-grow p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center min-w-[60px]">Add</button>
+                    </form>
+                    <div id="albums-list" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                        <!-- Album items will be dynamically inserted here -->
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">Loading albums...</p>
+                    </div>
+                </div>
+
+                <div id="tab-content-sections" class="tab-content space-y-4 hidden">
+                    <form id="add-section-form" class="flex gap-2">
+                        <input id="new-section-name" type="text" placeholder="New section name..." class="flex-grow p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center min-w-[60px]">Add</button>
+                    </form>
+                    <div id="sections-list" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                        <!-- Section items will be dynamically inserted here -->
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">Loading sections...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Edit Category Modal -->
+    <div id="edit-category-modal" class="fixed inset-0 z-[120] flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-sm transform transition-all scale-95 opacity-0">
+            <div class="flex justify-between items-center p-4 border-b dark:border-gray-700">
+                <h3 id="edit-modal-title" class="font-heading text-lg">Edit Name</h3>
+                <button data-close-modal="edit-category-modal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl">&times;</button>
+            </div>
+            <form id="edit-category-form" class="p-6 space-y-4">
+                <input id="edit-category-id" type="hidden">
+                <input id="edit-category-type" type="hidden">
+                <div>
+                    <label for="edit-category-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <input id="edit-category-name" type="text" class="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <div class="pt-4 flex justify-end gap-3">
+                    <button type="button" data-close-modal="edit-category-modal" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Custom Confirmation Modal -->
+    <div id="confirm-modal" class="fixed inset-0 z-[120] flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-sm transform transition-all scale-95 opacity-0">
+            <div class="p-6">
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/30">
+                        <iconify-icon icon="mdi:alert-outline" class="text-2xl text-red-600 dark:text-red-400"></iconify-icon>
+                    </div>
+                    <div class="flex-1">
+                        <h3 id="confirm-modal-title" class="font-heading text-lg">Are you sure?</h3>
+                        <p id="confirm-modal-text" class="text-sm text-gray-600 dark:text-gray-400 mt-1">This action cannot be undone.</p>
+                    </div>
+                </div>
+                <div class="pt-6 flex justify-end gap-3">
+                    <button id="confirm-modal-cancel" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition">Cancel</button>
+                    <button id="confirm-modal-confirm" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 5. Lightbox Modal -->
+    <div id="lightbox-modal" class="fixed inset-0 z-[130] flex items-center justify-center p-4 hidden bg-black/80 backdrop-blur-sm cursor-pointer" data-close-modal="lightbox-modal">
+        <img id="lightbox-image" src="" alt="Full size image" class="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl cursor-default" onclick="event.stopPropagation()">
+        <button data-close-modal="lightbox-modal" class="absolute top-4 right-4 text-white/70 hover:text-white text-4xl">&times;</button>
+    </div>
+
+
+    <!-- ================================== -->
+    <!--          JAVASCRIPT                -->
+    <!-- ================================== -->
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            collection, 
+            addDoc, 
+            getDoc, 
+            setDoc, 
+            updateDoc, 
+            deleteDoc, 
+            onSnapshot, 
+            query, 
+            where, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONSTANTS ---
+        const CLOUDINARY_CLOUD_NAME = "duexban9y";
+        const CLOUDINARY_UPLOAD_PRESET = "imageuploader";
+        const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+        
+        // Use provided Firebase config
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : JSON.stringify({
+            apiKey: "AIzaSyCP97oly1pEsGcW9ItBdg8khd79YcTQlgQ",
+            authDomain: "gifted-concept-458309-j4.firebaseapp.com",
+            projectId: "gifted-concept-458309-j4",
+            storageBucket: "gifted-concept-458309-j4.appspot.com",
+            messagingSenderId: "648245786907",
+            appId: "1:648245786907:web:73ce1bff8e797565827bbe",
+            measurementId: "G-T5SBGL9WQQ"
+        }));
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-gallery-app';
+
+        // --- FIREBASE GLOBALS ---
+        let app, auth, db, userId;
+        let albums = [];
+        let sections = [];
+        
+        let confirmCallback = null;
+
+        // --- DOM ELEMENTS ---
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        
+        // Add Image Modal
+        const addImageBtn = document.getElementById('add-image-btn');
+        const addImageModal = document.getElementById('add-image-modal');
+        const customizeBtn = document.getElementById('customize-btn');
+        const uploadForm = document.getElementById('upload-form');
+        const fileUpload = document.getElementById('file-upload');
+        const fileUploadText = document.getElementById('file-upload-text');
+        const fileUploadFilename = document.getElementById('file-upload-filename');
+        const albumSelect = document.getElementById('album-select');
+        const sectionSelect = document.getElementById('section-select');
+        const submitUploadBtn = document.getElementById('submit-upload-btn');
+        const uploadBtnText = document.getElementById('upload-btn-text');
+        const uploadSpinner = document.getElementById('upload-spinner');
+        const uploadError = document.getElementById('upload-error');
+        
+        // Manage Categories Modal
+        const manageCategoriesModal = document.getElementById('manage-categories-modal');
+        const tabAlbums = document.getElementById('tab-albums');
+        const tabSections = document.getElementById('tab-sections');
+        const tabContentAlbums = document.getElementById('tab-content-albums');
+        const tabContentSections = document.getElementById('tab-content-sections');
+        const addAlbumForm = document.getElementById('add-album-form');
+        const newAlbumNameInput = document.getElementById('new-album-name');
+        const albumsList = document.getElementById('albums-list');
+        const addSectionForm = document.getElementById('add-section-form');
+        const newSectionNameInput = document.getElementById('new-section-name');
+        const sectionsList = document.getElementById('sections-list');
+
+        // Edit Category Modal
+        const editCategoryModal = document.getElementById('edit-category-modal');
+        const editCategoryForm = document.getElementById('edit-category-form');
+        const editModalTitle = document.getElementById('edit-modal-title');
+        const editCategoryId = document.getElementById('edit-category-id');
+        const editCategoryType = document.getElementById('edit-category-type');
+        const editCategoryName = document.getElementById('edit-category-name');
+        
+        // Confirm Modal
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmModalTitle = document.getElementById('confirm-modal-title');
+        const confirmModalText = document.getElementById('confirm-modal-text');
+        const confirmModalCancel = document.getElementById('confirm-modal-cancel');
+        const confirmModalConfirm = document.getElementById('confirm-modal-confirm');
+        
+        // Lightbox Modal
+        const lightboxModal = document.getElementById('lightbox-modal');
+        const lightboxImage = document.getElementById('lightbox-image');
+
+        // Gallery
+        const galleryGrid = document.getElementById('gallery-grid');
+        const galleryLoading = document.getElementById('gallery-loading');
+
+        // Theme & Fullscreen
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        const themeIconLight = document.getElementById('theme-icon-light');
+        const themeIconDark = document.getElementById('theme-icon-dark');
+        const fullscreenToggleBtn = document.getElementById('fullscreen-toggle-btn');
+        const fullscreenIconEnter = document.getElementById('fullscreen-icon-enter');
+        const fullscreenIconExit = document.getElementById('fullscreen-icon-exit');
+
+        // --- MODAL UTILITIES ---
+        function openModal(modal) {
+            modalBackdrop.classList.remove('hidden');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                if (modal.id !== 'lightbox-modal') {
+                    modal.querySelector('div').classList.remove('scale-95', 'opacity-0');
+                } else {
+                     modal.classList.remove('opacity-0');
+                }
+            }, 10);
+        }
+
+        function closeModal(modal) {
+            if (modal.id !== 'lightbox-modal') {
+                modal.querySelector('div').classList.add('scale-95', 'opacity-0');
+            } else {
+                 modal.classList.add('opacity-0');
+            }
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                
+                // --- FIXED LOGIC ---
+                // Get all modals by their IDs
+                const allModals = document.querySelectorAll('#add-image-modal, #manage-categories-modal, #edit-category-modal, #confirm-modal, #lightbox-modal');
+                
+                // Check if *any* modal is *still* visible (i.e., does NOT have 'hidden')
+                let aModalIsStillOpen = false;
+                allModals.forEach(m => {
+                    if (!m.classList.contains('hidden')) {
+                        aModalIsStillOpen = true;
+                    }
+                });
+
+                // If no modals are left open, hide the backdrop
+                if (!aModalIsStillOpen) {
+                    modalBackdrop.classList.add('hidden');
+                }
+            }, 200);
+        }
+        
+        function openConfirmModal(title, text, onConfirm) {
+            confirmModalTitle.textContent = title;
+            confirmModalText.textContent = text;
+            confirmCallback = onConfirm;
+            openModal(confirmModal);
+        }
+        
+        confirmModalCancel.addEventListener('click', () => {
+            closeModal(confirmModal);
+            confirmCallback = null;
+        });
+        
+        confirmModalConfirm.addEventListener('click', () => {
+            if (typeof confirmCallback === 'function') {
+                confirmCallback();
+            }
+            closeModal(confirmModal);
+            confirmCallback = null;
+        });
+        
+        // Add lightbox modal to close logic
+        document.querySelectorAll('[data-close-modal]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Stop click from bubbling up (e.g., from lightbox image)
+                const modalId = btn.getAttribute('data-close-modal');
+                closeModal(document.getElementById(modalId));
+            });
+        });
+
+        // --- FIREBASE FUNCTIONS ---
+
+        async function initializeFirebase() {
+            try {
+                setLogLevel('Debug');
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Handle Authentication
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        console.log('User is signed in:', user.uid);
+                        userId = user.uid;
+                        // User is authenticated, now we can load data
+                        loadCategories('albums');
+                        loadCategories('sections');
+                        loadImages();
+                    } else {
+                        console.log('User is signed out, signing in...');
+                        signInUser();
+                    }
+                });
+            } catch (e) {
+                console.error("Error initializing Firebase: ", e);
+            }
+        }
+        
+        async function signInUser() {
+             try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase sign-in error:", error);
+            }
+        }
+
+        // --- CATEGORY (ALBUM/SECTION) FUNCTIONS ---
+
+        function loadCategories(type) { // type is 'albums' or 'sections'
+            if (!db || !userId) return;
+            
+            const collectionPath = `artifacts/${appId}/users/${userId}/${type}`;
+            const q = query(collection(db, collectionPath));
+            
+            onSnapshot(q, (querySnapshot) => {
+                const list = [];
+                querySnapshot.forEach((doc) => {
+                    list.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Store in global state
+                if (type === 'albums') {
+                    albums = list;
+                } else {
+                    sections = list;
+                }
+                
+                // Re-render the management list and dropdowns
+                renderCategoryList(type, list);
+                populateDropdowns();
+            }, (error) => {
+                console.error(`Error loading ${type}: `, error);
+            });
+        }
+        
+        function renderCategoryList(type, list) {
+            const listEl = (type === 'albums') ? albumsList : sectionsList;
+            if (list.length === 0) {
+                listEl.innerHTML = `<p class="text-gray-500 dark:text-gray-400 text-sm">No ${type} found. Add one above!</p>`;
+                return;
+            }
+            
+            listEl.innerHTML = list.map(item => `
+                <div class="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <span class="text-sm">${item.name}</span>
+                    <div class="flex gap-2 text-lg">
+                        <button data-edit-id="${item.id}" data-edit-name="${item.name}" data-edit-type="${type}" class="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400" title="Edit">
+                            <iconify-icon icon="mdi:pencil-outline"></iconify-icon>
+                        </button>
+                        <button data-delete-id="${item.id}" data-delete-name="${item.name}" data-delete-type="${type}" class="text-gray-500 hover:text-red-600 dark:hover:text-red-400" title="Delete">
+                            <iconify-icon icon="mdi:delete-outline"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function addCategory(type, name) {
+            if (!db || !userId) return;
+            const collectionPath = `artifacts/${appId}/users/${userId}/${type}`;
+            try {
+                await addDoc(collection(db, collectionPath), { name });
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
+        }
+        
+        async function updateCategory(type, id, newName) {
+            if (!db || !userId) return;
+            const docPath = `artifacts/${appId}/users/${userId}/${type}/${id}`;
+            try {
+                await updateDoc(doc(db, docPath), { name: newName });
+            } catch (e) {
+                console.error("Error updating document: ", e);
+            }
+        }
+
+        async function deleteCategory(type, id) {
+            if (!db || !userId) return;
+            const docPath = `artifacts/${appId}/users/${userId}/${type}/${id}`;
+            try {
+                await deleteDoc(doc(db, docPath));
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+            }
+        }
+
+        // --- IMAGE FUNCTIONS ---
+        
+        function loadImages() {
+            if (!db || !userId) return;
+
+            const collectionPath = `artifacts/${appId}/users/${userId}/images`;
+            const q = query(collection(db, collectionPath));
+
+            onSnapshot(q, (querySnapshot) => {
+                const imageList = [];
+                querySnapshot.forEach((doc) => {
+                    imageList.push({ id: doc.id, ...doc.data() });
+                });
+                renderGallery(imageList);
+                galleryLoading.classList.add('hidden');
+            }, (error) => {
+                console.error("Error loading images: ", error);
+                galleryGrid.innerHTML = `<p class="text-red-500 col-span-full text-center">Error loading images.</p>`;
+            });
+        }
+        
+        function renderGallery(images) {
+            if (images.length === 0) {
+                galleryGrid.innerHTML = `<p class="text-gray-500 dark:text-gray-400 col-span-full text-center">No images found. Upload one to get started!</p>`;
+                return;
+            }
+            
+            // Use the new card layout
+            galleryGrid.innerHTML = images.map(image => {
+                const album = albums.find(a => a.id === image.albumId);
+                const section = sections.find(s => s.id === image.sectionId);
+                
+                const albumName = album ? album.name : "Uncategorized";
+                const sectionName = section ? section.name : "Uncategorized";
+                
+                return `
+                <div class="image-card">
+                    <img 
+                        src="${image.imageUrl}" 
+                        alt="Gallery image"
+                        onerror="this.src='https://placehold.co/276x418/cccccc/333333?text=Image+Not+Found'"
+                    >
+
+                    <!-- Top Row -->
+                    <div class="top-row">
+                        <button class="icon-btn view" title="View Large" data-view-image-url="${image.imageUrl}">
+                            <iconify-icon icon="mdi:fullscreen"></iconify-icon>
+                        </button>
+                    </div>
+
+                    <!-- Bottom Row -->
+                    <div class="bottom-row">
+                        <div class="text-group">
+                            <span class="title">${sectionName}</span>
+                            <span class="subtitle">${albumName}</span>
+                        </div>
+                        <div class="icon-group">
+                            <button class="icon-btn trash" title="Delete" data-delete-image-id="${image.id}">
+                                <iconify-icon icon="mdi:delete-outline"></iconify-icon>
+                            </button>
+                            <a href="${image.imageUrl}" download class="icon-btn download" title="Download">
+                                <iconify-icon icon="mdi:download-outline"></iconify-icon>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        async function handleImageUpload(e) {
+            e.preventDefault();
+            const file = fileUpload.files[0];
+            const albumId = albumSelect.value;
+            const sectionId = sectionSelect.value;
+            
+            if (!file || !albumId || !sectionId) {
+                uploadError.textContent = "Please select a file, album, and section.";
+                uploadError.classList.remove('hidden');
+                return;
+            }
+            
+            uploadError.classList.add('hidden');
+            uploadBtnText.classList.add('hidden');
+            uploadSpinner.classList.remove('hidden');
+            submitUploadBtn.disabled = true;
+
+            // 1. Upload to Cloudinary
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+            try {
+                const response = await fetch(CLOUDINARY_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Cloudinary upload failed');
+                
+                const data = await response.json();
+                const imageUrl = data.secure_url;
+
+                // 2. Save to Firebase
+                const collectionPath = `artifacts/${appId}/users/${userId}/images`;
+                await addDoc(collection(db, collectionPath), {
+                    imageUrl,
+                    albumId,
+                    sectionId,
+                    createdAt: serverTimestamp()
+                });
+                
+                // 3. Reset form
+                uploadForm.reset();
+                fileUploadFilename.textContent = "";
+                fileUploadText.textContent = "Click to choose a file";
+                closeModal(addImageModal);
+
+            } catch (err) {
+                console.error("Upload failed: ", err);
+                uploadError.textContent = "Upload failed. Please try again.";
+                uploadError.classList.remove('hidden');
+            } finally {
+                uploadBtnText.classList.remove('hidden');
+                uploadSpinner.classList.add('hidden');
+                submitUploadBtn.disabled = false;
+            }
+        }
+        
+        async function deleteImage(id) {
+            if (!db || !userId) return;
+            // TODO: Delete from Cloudinary as well (requires backend)
+            const docPath = `artifacts/${appId}/users/${userId}/images/${id}`;
+            try {
+                await deleteDoc(doc(db, docPath));
+            } catch (e) {
+                console.error("Error deleting image: ", e);
+            }
+        }
+
+
+        // --- HELPER FUNCTIONS ---
+        
+        function populateDropdowns() {
+            // Populate Album Dropdown
+            albumSelect.innerHTML = '<option value="" disabled selected>Select an album</option>';
+            albums.forEach(album => {
+                albumSelect.innerHTML += `<option value="${album.id}">${album.name}</option>`;
+            });
+            if (albums.length === 0) {
+                 albumSelect.innerHTML = '<option value="" disabled>No albums found. Please add one.</option>';
+            }
+
+            // Populate Section Dropdown
+            sectionSelect.innerHTML = '<option value="" disabled selected>Select a section</option>';
+            sections.forEach(section => {
+                sectionSelect.innerHTML += `<option value="${section.id}">${section.name}</option>`;
+            });
+            if (sections.length === 0) {
+                 sectionSelect.innerHTML = '<option value="" disabled>No sections found. Please add one.</option>';
+            }
+        }
+
+
+        // --- EVENT LISTENERS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            initializeFirebase();
+
+            // --- Theme & Fullscreen Listeners ---
+            function applyTheme(isDark) {
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    themeIconLight.classList.add('hidden');
+                    themeIconDark.classList.remove('hidden');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    themeIconLight.classList.remove('hidden');
+                    themeIconDark.classList.add('hidden');
+                    localStorage.setItem('theme', 'light');
+                }
+            }
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            applyTheme(savedTheme === 'dark' || (!savedTheme && prefersDark));
+            themeToggleBtn.addEventListener('click', () => {
+                applyTheme(!document.documentElement.classList.contains('dark'));
+            });
+            fullscreenToggleBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.warn(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    });
+                } else {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                }
+            });
+            document.addEventListener('fullscreenchange', () => {
+                if (document.fullscreenElement) {
+                    fullscreenIconEnter.classList.add('hidden');
+                    fullscreenIconExit.classList.remove('hidden');
+                } else {
+                    fullscreenIconEnter.classList.remove('hidden');
+                    fullscreenIconExit.classList.add('hidden');
+                }
+            });
+            if (document.fullscreenElement) {
+                fullscreenIconEnter.classList.add('hidden');
+                fullscreenIconExit.classList.remove('hidden');
+            }
+
+            // --- Modal Openers/Closers ---
+            addImageBtn.addEventListener('click', () => openModal(addImageModal));
+            customizeBtn.addEventListener('click', () => openModal(manageCategoriesModal));
+            
+            // --- File Input UI ---
+            fileUpload.addEventListener('change', () => {
+                if (fileUpload.files.length > 0) {
+                    const filename = fileUpload.files[0].name;
+                    fileUploadFilename.textContent = filename;
+                    fileUploadText.textContent = "Change file";
+                } else {
+                    fileUploadFilename.textContent = "";
+                    fileUploadText.textContent = "Click to choose a file";
+                }
+            });
+
+            // --- Form Submissions ---
+            uploadForm.addEventListener('submit', handleImageUpload);
+            
+            addAlbumForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = newAlbumNameInput.value.trim();
+                if (name) {
+                    addCategory('albums', name);
+                    newAlbumNameInput.value = '';
+                }
+            });
+            
+            addSectionForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = newSectionNameInput.value.trim();
+                if (name) {
+                    addCategory('sections', name);
+                    newSectionNameInput.value = '';
+                }
+            });
+            
+            editCategoryForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = editCategoryId.value;
+                const type = editCategoryType.value;
+                const newName = editCategoryName.value.trim();
+                if (id && type && newName) {
+                    updateCategory(type, id, newName);
+                    closeModal(editCategoryModal);
+                }
+            });
+
+            // --- Manage Categories Tabs ---
+            tabAlbums.addEventListener('click', () => {
+                tabContentAlbums.classList.remove('hidden');
+                tabContentSections.classList.add('hidden');
+                tabAlbums.classList.add('text-blue-600', 'border-blue-600', 'dark:text-blue-400', 'dark:border-blue-400');
+                tabAlbums.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300', 'dark:text-gray-400', 'dark:hover:text-gray-300', 'dark:hover:border-gray-600');
+                tabSections.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300', 'dark:text-gray-400', 'dark:hover:text-gray-300', 'dark:hover:border-gray-600');
+                tabSections.classList.remove('text-blue-600', 'border-blue-600', 'dark:text-blue-400', 'dark:border-blue-400');
+            });
+
+            tabSections.addEventListener('click', () => {
+                tabContentSections.classList.remove('hidden');
+                tabContentAlbums.classList.add('hidden');
+                tabSections.classList.add('text-blue-600', 'border-blue-600', 'dark:text-blue-400', 'dark:border-blue-400');
+                tabSections.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300', 'dark:text-gray-400', 'dark:hover:text-gray-300', 'dark:hover:border-gray-600');
+                tabAlbums.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300', 'dark:text-gray-400', 'dark:hover:text-gray-300', 'dark:hover:border-gray-600');
+                tabAlbums.classList.remove('text-blue-600', 'border-blue-600', 'dark:text-blue-400', 'dark:border-blue-400');
+            });
+            
+            // --- Dynamic Event Listeners for Edit/Delete ---
+            
+            // For Category Lists
+            [albumsList, sectionsList].forEach(list => {
+                list.addEventListener('click', (e) => {
+                    const editBtn = e.target.closest('[data-edit-id]');
+                    const deleteBtn = e.target.closest('[data-delete-id]');
+
+                    if (editBtn) {
+                        const { editId, editName, editType } = editBtn.dataset;
+                        editModalTitle.textContent = `Edit ${editType.slice(0, -1)}`;
+                        editCategoryId.value = editId;
+                        editCategoryType.value = editType;
+                        editCategoryName.value = editName;
+                        openModal(editCategoryModal);
+                    }
+                    
+                    if (deleteBtn) {
+                        const { deleteId, deleteName, deleteType } = deleteBtn.dataset;
+                        openConfirmModal(
+                            `Delete ${deleteType.slice(0, -1)}`,
+                            `Are you sure you want to delete "${deleteName}"? This cannot be undone.`,
+                            () => {
+                                deleteCategory(deleteType, deleteId);
+                            }
+                        );
+                    }
+                });
+            });
+            
+            // For Gallery Grid
+            galleryGrid.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('[data-delete-image-id]');
+                const viewBtn = e.target.closest('[data-view-image-url]');
+
+                if (deleteBtn) {
+                    const { deleteImageId } = deleteBtn.dataset;
+                    openConfirmModal(
+                        'Delete Image',
+                        'Are you sure you want to delete this image? This action cannot be undone.',
+                        () => {
+                            deleteImage(deleteImageId);
+                        }
+                    );
+                }
+                
+                if (viewBtn) {
+                    const { viewImageUrl } = viewBtn.dataset;
+                    lightboxImage.setAttribute('src', viewImageUrl);
+                    openModal(lightboxModal);
+                }
+            });
+            
+        });
+    </script>
+
+</body>
+</html>
+
